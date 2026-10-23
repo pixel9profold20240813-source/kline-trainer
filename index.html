@@ -37,10 +37,10 @@ dialog input{width:100%;padding:10px;background:#111;color:var(--t);border:1px s
 </section>
 <section id="tr">
  <div id="info"></div><div id="cw"><canvas id="cv"></canvas></div>
- <div id="tb"><button onclick="Z(-10)">＋</button><button onclick="Z(10)">－</button><button onclick="P(10)">◀</button><button onclick="P(-10)">▶</button><span class="sp"></span><label class="l"><input type="checkbox" id="au" onchange="auto()">自動</label><select id="sp" onchange="auto()"><option value="1500">慢</option><option value="700">中</option><option value="300" selected>快</option><option value="100">極快</option><option value="40">瞬間</option></select></div>
+ <div id="tb"><button onclick="Z(-10)">＋</button><button onclick="Z(10)">－</button><button onclick="P(10)">◀</button><button onclick="P(-10)">▶</button><span class="sp"></span><button id="au" onclick="auto(1)" style="width:auto;padding:0 14px">自動</button><select id="sp" onchange="auto()"><option value="1500">慢</option><option value="700">中</option><option value="300" selected>快</option><option value="100">極快</option><option value="40">瞬間</option></select></div>
  
  <div id="pos"></div>
- <div id="ab"><button class="bu" onclick="dlg('b')">買入</button><button class="sl" onclick="dlg('s')">賣出</button><button class="nx" onclick="next()">下一步</button></div>
+ <div id="ab"><button class="bu" onclick="dlg('b')">買入</button><button class="sl" onclick="dlg('s')">賣出</button><button class="nx" id="nx" onclick="nxt()">下一步</button></div>
 </section>
 <section id="rc"></section>
 </main>
@@ -68,14 +68,16 @@ async function start(){stop();if(A.eq<100){alert('資金不足，請在首頁重
  S={code,name:j.n,r,s,i:s,I:prep(r),cash:A.eq,sh:0,cost:0,start:A.eq,tr:[],hold:0,buy:0,peak:A.eq,dd:0,done:false};N=80;off=0;go('tr');render()}
  catch(e){alert('讀不到 data/ 資料，請先執行 fetch_data.py 並一併上傳 data 資料夾')}}
 function next(){if(!S||S.done)return;S.i++;if(S.sh)S.hold++;const e=eq();S.peak=Math.max(S.peak,e);S.dd=Math.min(S.dd,e/S.peak-1);off=0;render();if(S.i>=S.s+150)end()}
-function auto(){stop(false);if($('#au').checked&&S&&!S.done)timer=setInterval(next,+$('#sp').value)}
-function stop(u=true){clearInterval(timer);timer=null;if(u)$('#au').checked=false}
+function nxt(){timer?stop():next()}
+function auto(on){if(!S||S.done||(!on&&!timer))return;clearInterval(timer);timer=setInterval(next,+$('#sp').value);ui()}
+function stop(){clearInterval(timer);timer=null;ui()}
+function ui(){const b=$('#nx');b.textContent=timer?'停止自動':'下一步';b.style.background=timer?'#e08a00':'';$('#au').disabled=!!timer}
 function maxBuy(p){let n=Math.floor(S.cash/(p*1.001425));while(n>0&&p*n+fee(p,n)>S.cash)n--;return n}
-function trade(side,n){const p=cp(),f=fee(p,n);
+function trade(side,n){if(side=='s'&&n>S.sh)return;const p=cp(),f=fee(p,n);
  if(side=='b'){S.cash-=p*n+f;S.cost=(S.cost*S.sh+p*n+f)/(S.sh+n);S.sh+=n;S.buy=Math.max(S.buy,S.cost*S.sh)}
  else{S.cash+=p*n-f;A.sells++;if(p*n-f>S.cost*n)A.wins++;S.sh-=n;if(!S.sh)S.cost=0}
  A.ops++;S.tr.push([S.i-S.s,side,p,n,f]);save();render()}
-function dlg(side){if(!S||S.done)return;const p=cp();mx=side=='b'?maxBuy(p):S.sh;if(mx<1)return alert(side=='b'?'資金不足':'目前無持倉');window.sd=side;
+function dlg(side){if(!S||S.done)return;stop();const p=cp();mx=side=='b'?maxBuy(p):S.sh;if(mx<1)return alert(side=='b'?'資金不足':'目前無持倉');sd=side;
  $('#md').innerHTML=`<h3>${side=='b'?'買入':'賣出'}股票</h3><p>價格 ${F(p)}　可用資金 ${F(S.cash,0)}</p>
  <div class=r><button onclick="st(-1)">－</button><input id=q type=number inputmode=numeric value=${mx>=1000?1000:mx} oninput=up()><button onclick="st(1)">＋</button></div>
  <p class=l>最多 ${mx} 股（每次 ± 1000 股，可手動輸入零股）<br>費用 <span id=fe></span></p>
@@ -100,7 +102,7 @@ function render(){if(!S)return;const r=S.r,i=S.i,x=r[i],p=x[4],pv=i?r[i-1][4]:x[
  cell('成本/現價',(S.sh?F(S.cost):'--')+' / '+F(p))+cell('總資產/可用',F(e,0)+' / '+F(S.cash,0))+cell('總盈虧',`<span class=${C(tp)}>${F(tp,0)} ${sg(tp/S.start)}</span>`)+'</div>';draw()}
 const Z=d=>{N=Math.min(250,Math.max(20,N+d));draw()},P=d=>{if(S){off=Math.min(S.i-10,Math.max(0,off+d));draw()}};
 function draw(){const cv=$('#cv'),w=cv.clientWidth,h=cv.clientHeight,dp=devicePixelRatio||1;if(!w)return;cv.width=w*dp;cv.height=h*dp;const g=cv.getContext('2d');g.scale(dp,dp);if(!S)return;
- const{r,I}=S,end=S.i+1-off,st=Math.max(0,end-N),pw=w*.82,bw=pw/N,Pn=[14,h*.6],V=[h*.63,h*.79],M=[h*.82,h-4];let hi=-1e9,lo=1e9,vm=1,mm=1e-9;
+ const{r,I}=S,end=S.i+1-off,st=Math.max(0,end-N),pw=w*.82,bw=pw/N,Pn=[28,h*.6-18],V=[h*.63,h*.79],M=[h*.82,h-4];let hi=-1e9,lo=1e9,vm=1,mm=1e-9;
  for(let k=st;k<end;k++){hi=Math.max(hi,r[k][2]);lo=Math.min(lo,r[k][3]);vm=Math.max(vm,r[k][5]);mm=Math.max(mm,Math.abs(I.dif[k]),Math.abs(I.dea[k]),Math.abs(I.h[k]))}
  if(S.sh){hi=Math.max(hi,S.cost);lo=Math.min(lo,S.cost)}const yP=v=>Pn[1]-(v-lo)/(hi-lo||1)*(Pn[1]-Pn[0]),yV=v=>V[1]-v/vm*(V[1]-V[0]),yM=v=>(M[0]+M[1])/2-v/mm*(M[1]-M[0])/2,X=k=>(k-st+.5)*bw,col=up=>up?'#ff5252':'#26a17b';
  g.lineWidth=1;g.font='11px system-ui';
@@ -109,6 +111,7 @@ function draw(){const cv=$('#cv'),w=cv.clientWidth,h=cv.clientHeight,dp=devicePi
   g.fillStyle=col(I.h[k]>=0);const z=yM(0),hy=yM(I.h[k]);g.fillRect(x-bw*.3,Math.min(z,hy),bw*.6,Math.max(1,Math.abs(hy-z)))}
  const line=(arr,f,c)=>{g.strokeStyle=c;g.beginPath();let on=0;for(let k=st;k<end;k++){if(arr[k]==null)continue;on?g.lineTo(X(k),f(arr[k])):g.moveTo(X(k),f(arr[k]));on=1}g.stroke()};
  ['#fff','#e040fb','#ff9800','#5c6bff'].forEach((c,j)=>line(I.ma[j],yP,c));line(I.dif,yM,'#fff');line(I.dea,yM,'#26c6da');
+ S.tr.forEach(t=>{const k=S.s+t[0];if(k<st||k>=end)return;const b=t[1]=='b',x=X(k),y=b?yP(r[k][3])+6:yP(r[k][2])-6;g.fillStyle=b?'#ff5252':'#26a17b';g.strokeStyle='#fff';g.lineWidth=1;g.beginPath();g.moveTo(x,y);g.lineTo(x-6,y+(b?10:-10));g.lineTo(x+6,y+(b?10:-10));g.closePath();g.fill();g.stroke();g.fillStyle='#fff';g.font='bold 11px system-ui';g.textAlign='center';g.fillText(b?'買':'賣',x,b?y+22:y-14);g.textAlign='left';g.font='11px system-ui'});
  if(S.sh){g.strokeStyle='#ff3b3b';g.lineWidth=1.5;g.beginPath();g.moveTo(0,yP(S.cost));g.lineTo(w,yP(S.cost));g.stroke();g.lineWidth=1}g.setLineDash([5,4]);g.strokeStyle='#2a8cff';g.beginPath();g.moveTo(0,yP(r[S.i][4]));g.lineTo(w,yP(r[S.i][4]));g.stroke();g.setLineDash([]);
  
  g.fillStyle='#8a8a8a';g.fillText(F(hi),pw+6,Pn[0]+8);g.fillText(F(lo),pw+6,Pn[1]);g.fillStyle='#2a8cff';g.fillText(F(r[S.i][4]),pw+6,yP(r[S.i][4])-3);if(S.sh){g.fillStyle='#ff3b3b';g.fillText(F(S.cost),pw+6,yP(S.cost)+11)}
