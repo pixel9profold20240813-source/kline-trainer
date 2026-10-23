@@ -1,5 +1,5 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>K線訓練</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>K線訓練</title><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#000000"><link rel="apple-touch-icon" href="icon-192.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="K線訓練">
 <style>
 :root{--bg:#141414;--p:#222;--t:#e6e6e6;--m:#8a8a8a;--u:#ff5252;--d:#26a17b;--b:#2a8cff}
 *{box-sizing:border-box;margin:0}
@@ -18,7 +18,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--b)}
 .g{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 8px}.g b{display:block;font-size:17px;font-weight:500;margin-top:2px}
 .r{display:flex;gap:8px;align-items:center}.r>*{flex:1}
 #tr.on{gap:0}#info{padding:6px 12px 2px;line-height:1.45;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}#info .x{flex:none;padding:6px 14px;font-size:13px}
-#cw{flex:1;min-height:0;position:relative}#cv{position:absolute;inset:0;width:100%;height:100%}
+#cw{flex:1;min-height:0;position:relative}#cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
 #tb{display:flex;align-items:center;gap:6px;padding:6px 12px}#tb button{flex:none;width:38px;height:34px;padding:0;font-size:15px}#tb .sp{flex:1}#tb label{display:flex;align-items:center;gap:4px;white-space:nowrap}#tb select{height:34px;background:var(--p);color:var(--t);border:1px solid #444;border-radius:6px;padding:0 8px;font:inherit}#ab{display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:8px;padding:8px 12px}#ab button{height:48px;font-size:16px;font-weight:600;border:0;color:#fff}#ab .bu{background:#d63a3a}#ab .sl{background:#1f8a68}#ab .nx{background:var(--b)}
 #pos{padding:8px 12px;background:#1a1a1a}#pos .g{gap:8px}#pos .g b{font-size:14px}
 dialog{margin:auto;width:min(92vw,420px);background:#1c1c1c;color:var(--t);border:1px solid #333;border-radius:14px;padding:18px}
@@ -29,10 +29,20 @@ dialog input{width:100%;padding:10px;background:#111;color:var(--t);border:1px s
 .tag{padding:4px 12px;border-radius:14px;background:#2a2a2a}
 .nt{background:#262626;border-radius:8px;padding:10px;font-style:italic;color:var(--m)}
 @media(orientation:landscape) and (max-height:600px){#tr.on{display:grid;grid-template-columns:1fr 300px;grid-template-rows:auto auto auto 1fr}#cw{grid-column:1;grid-row:1/5}#info{grid-column:2;grid-row:1}#pos{grid-column:2;grid-row:2}#tb{grid-column:2;grid-row:3}#ab{grid-column:2;grid-row:4;align-self:end}#pos .g{grid-template-columns:repeat(2,1fr)}}
+[hidden]{display:none!important}
+button{transition:transform .12s,filter .15s,background .2s,opacity .2s}button:active:not(:disabled){transform:scale(.94);filter:brightness(1.25)}button:disabled{opacity:.45}
+section.on{animation:sin .28s cubic-bezier(.2,.8,.2,1)}.c{animation:sin .3s cubic-bezier(.2,.8,.2,1) both}
+@keyframes sin{from{opacity:0;transform:translateY(10px)}}
+dialog[open]{animation:pop .24s cubic-bezier(.2,.9,.3,1.15)}dialog[open]::backdrop{animation:fd .24s}
+@keyframes pop{from{opacity:0;transform:scale(.92) translateY(14px)}}@keyframes fd{from{opacity:0}}
+dialog.out{animation:pout .15s forwards}dialog.out::backdrop{animation:fdo .15s forwards}
+@keyframes pout{to{opacity:0;transform:scale(.94) translateY(8px)}}@keyframes fdo{to{opacity:0}}
+nav button{transition:color .2s}
+@media(prefers-reduced-motion:reduce){*,::backdrop{animation:none!important;transition:none!important}}
 </style></head><body><main>
 <section id="hm" class="on">
  <div class="g" id="st"></div>
- <div class="r"><button onclick="start()" style="background:var(--b);border-color:var(--b)">開始訓練</button><button onclick="reset()">重置帳戶</button></div>
+ <div class="r"><button id="ins" onclick="inst()" style="background:var(--b);border-color:var(--b)">安裝 App</button><button onclick="reset()">重置帳戶</button></div>
  <small>隨機抽取一檔上市股票與一段歷史，150 個交易日。成交價為當日收盤價，手續費 0.1425%（整股最低 20 元、零股最低 1 元）。</small>
 </section>
 <section id="tr">
@@ -49,7 +59,7 @@ dialog input{width:100%;padding:10px;background:#111;color:var(--t);border:1px s
 <script>
 const $=s=>document.querySelector(s),F=(n,d=2)=>Number(n).toFixed(d),C=v=>v>=0?'u':'d',sg=v=>(v>=0?'+':'')+F(v*100)+'%';
 const fresh=()=>({eq:50000,ops:0,days:0,wins:0,sells:0,best:0,worst:0,dd:0,hist:[]});
-let A=JSON.parse(localStorage.getItem('kt')||'null')||fresh(),S=null,N=80,off=0,timer=null,codes=null,sd,mx;
+let A=JSON.parse(localStorage.getItem('kt')||'null')||fresh(),S=null,N=80,Nf=80,off=0,timer=null,codes=null,sd,mx;
 const save=()=>localStorage.setItem('kt',JSON.stringify(A));
 const cp=()=>S.r[S.i][4],eq=()=>S.cash+S.sh*cp()-(S.sh?fee(cp(),S.sh):0);
 const fee=(p,n)=>Math.max(n>=1000?20:1,Math.round(p*n*.001425));
@@ -65,7 +75,7 @@ function prep(r){const c=r.map(x=>x[4]),ma=n=>c.map((_,i)=>i<n-1?null:c.slice(i-
  const dea=dif.map(v=>e=v*.2+e*.8);return{ma:[5,10,20,30].map(ma),dif,dea,h:dif.map((v,i)=>2*(v-dea[i]))}}
 async function start(){stop();if(A.eq<100){alert('資金不足，請在首頁重置帳戶');return}
  try{codes=codes||await(await fetch('data/index.json')).json();const code=codes[Math.random()*codes.length|0],j=await(await fetch(`data/${code}.json`)).json(),r=j.r,s=60+Math.random()*(r.length-211)|0;
- S={code,name:j.n,r,s,i:s,I:prep(r),cash:A.eq,sh:0,cost:0,start:A.eq,tr:[],hold:0,buy:0,peak:A.eq,dd:0,done:false};N=80;off=0;go('tr');render()}
+ S={code,name:j.n,r,s,i:s,I:prep(r),cash:A.eq,sh:0,cost:0,start:A.eq,tr:[],hold:0,buy:0,peak:A.eq,dd:0,done:false};N=80;Nf=80;off=0;go('tr');render()}
  catch(e){alert('讀不到 data/ 資料，請先執行 fetch_data.py 並一併上傳 data 資料夾')}}
 function next(){if(!S||S.done)return;S.i++;if(S.sh)S.hold++;const e=eq();S.peak=Math.max(S.peak,e);S.dd=Math.min(S.dd,e/S.peak-1);off=0;render();if(S.i>=S.s+150)end()}
 function nxt(){timer?stop():next()}
@@ -83,7 +93,7 @@ function dlg(side){if(!S||S.done)return;stop();const p=cp();mx=side=='b'?maxBuy(
  <p class=l>最多 ${mx} 股（每次 ± 1000 股，可手動輸入零股）<br>費用 <span id=fe></span></p>
  <div class=r>${[['全倉',1],['1/2',2],['1/3',3],['1/4',4]].map(([l,d])=>`<button onclick="qf(${d})">${l}</button>`).join('')}</div>
  <div class=r style="margin-top:14px"><button onclick="$('#md').close()">取消</button><button id=ok style="background:var(--b);border-color:var(--b)">${side=='b'?'買入':'賣出'}</button></div>`;
- $('#ok').onclick=()=>{trade(sd,qv());$('#md').close()};$('#md').showModal();up()}
+ $('#ok').onclick=()=>{trade(sd,qv());$('#md').close()};show();up()}
 const qv=()=>Math.min(mx,Math.max(1,parseInt($('#q').value)||1));
 function up(){const n=qv();$('#fe').textContent=fee(cp(),n)+' 元（成交額 '+F(cp()*n,0)+'）'}
 function st(d){$('#q').value=Math.min(mx,Math.max(1,qv()+d*(mx>=1000?1000:1)));up()}
@@ -94,13 +104,13 @@ function end(){stop();const p=cp();if(S.sh){const f=fee(p,S.sh);S.cash+=p*S.sh-f
  A.hist.unshift({code:S.code,name:S.name,from:S.r[S.s][0],to:S.r[S.i][0],at:new Date().toLocaleString('zh-TW',{hour12:false}),pnl,ar:pr,ir:S.buy?pnl/S.buy:0,hold:S.hold,note:'',tr:S.tr});save();render();
  $('#md').innerHTML=`<h3>結束訓練</h3><p class=l>本股總收益</p><p class=${C(pnl)} style="font-size:24px">${pnl>=0?'+':''}${F(pnl,0)}　${sg(pr)}</p>
  <p>${S.name} ${S.code}</p><p class=l>${S.r[S.s][0]} ～ ${S.r[S.i][0]}　區間漲幅 <span class=${C(rg)}>${sg(rg)}</span></p>
- <div class=r style="margin-top:14px"><button onclick="$('#md').close()">復盤</button><button onclick="$('#md').close();start()" style="background:var(--b);border-color:var(--b)">換股</button></div>`;$('#md').showModal()}
+ <div class=r style="margin-top:14px"><button onclick="$('#md').close()">復盤</button><button onclick="$('#md').close();start()" style="background:var(--b);border-color:var(--b)">換股</button></div>`;show()}
 function render(){if(!S)return;const r=S.r,i=S.i,x=r[i],p=x[4],pv=i?r[i-1][4]:x[1],ch=p/pv-1,mv=S.sh*p,e=eq(),sf=S.sh?fee(p,S.sh):0,pl=S.sh?(p-S.cost)*S.sh-sf:0,tp=e-S.start;
  $('#info').innerHTML=`<div><b class=${C(ch)} style="font-size:22px">${F(p)}</b> <span class=${C(ch)}>${sg(ch)}</span> <small>${S.done?S.name+' '+S.code+' '+x[0]:'第 '+(i-S.s)+' / 150 天'}</small><br><small>開 ${F(x[1])}　高 ${F(x[2])}　低 ${F(x[3])}　量 ${x[5]} 張</small></div>${S.done?'':"<button class=x onclick=fin()>結束</button>"}`;
  const cell=(a,b)=>`<div><small>${a}</small><b>${b}</b></div>`;
  $('#pos').innerHTML='<div class=g>'+cell('市值',F(mv,0))+cell('盈虧',`<span class=${C(pl)}>${F(pl,0)}${S.sh?' '+sg(pl/(S.cost*S.sh)):''}</span>`)+cell('持倉',S.sh||'--')+
  cell('成本/現價',(S.sh?F(S.cost):'--')+' / '+F(p))+cell('總資產/可用',F(e,0)+' / '+F(S.cash,0))+cell('總盈虧',`<span class=${C(tp)}>${F(tp,0)} ${sg(tp/S.start)}</span>`)+'</div>';draw()}
-const Z=d=>{N=Math.min(250,Math.max(20,N+d));draw()},P=d=>{if(S){off=Math.min(S.i-10,Math.max(0,off+d));draw()}};
+const Z=d=>{N=Math.min(250,Math.max(20,N+d));Nf=N;draw()},P=d=>{if(S){off=Math.min(S.i-10,Math.max(0,off+d));draw()}};
 function draw(){const cv=$('#cv'),w=cv.clientWidth,h=cv.clientHeight,dp=devicePixelRatio||1;if(!w)return;cv.width=w*dp;cv.height=h*dp;const g=cv.getContext('2d');g.scale(dp,dp);if(!S)return;
  const{r,I}=S,end=S.i+1-off,st=Math.max(0,end-N),pw=w*.82,bw=pw/N,Pn=[28,h*.6-18],V=[h*.63,h*.79],M=[h*.82,h-4];let hi=-1e9,lo=1e9,vm=1,mm=1e-9;
  for(let k=st;k<end;k++){hi=Math.max(hi,r[k][2]);lo=Math.min(lo,r[k][3]);vm=Math.max(vm,r[k][5]);mm=Math.max(mm,Math.abs(I.dif[k]),Math.abs(I.dea[k]),Math.abs(I.h[k]))}
@@ -123,5 +133,20 @@ function recs(){$('#rc').innerHTML=A.hist.map((h,k)=>`<div class=c><div class=h>
  <div class=nt onclick="note(${k})">${h.note||'暫無心得，點此記錄這次訓練的思考'}</div>
  <details><summary class=l>交易明細（${h.tr.length} 筆）</summary>${h.tr.map(t=>`<small>第${t[0]}天 ${t[1]=='b'?'買':'賣'} ${t[3]}股 @${F(t[2])} 費${t[4]}</small><br>`).join('')}</details></div>`).join('')||'<small>尚無紀錄，完成一次訓練後會出現在這裡。</small>'}
 function note(k){const v=prompt('心得',A.hist[k].note);if(v!==null){A.hist[k].note=v;save();recs()}}
+const ptr=new Map(),cvs=$('#cv');let lastD=0,acc=0;
+cvs.addEventListener('pointerdown',e=>{cvs.setPointerCapture(e.pointerId);ptr.set(e.pointerId,[e.clientX,e.clientY]);lastD=0;acc=0});
+cvs.addEventListener('pointermove',e=>{if(!S||!ptr.has(e.pointerId))return;const o=ptr.get(e.pointerId);
+ if(ptr.size==1){acc+=e.clientX-o[0];const bw=cvs.clientWidth*.82/N,k=Math.trunc(acc/bw);if(k){off=Math.min(S.i-10,Math.max(0,off+k));acc-=k*bw;draw()}}
+ ptr.set(e.pointerId,[e.clientX,e.clientY]);
+ if(ptr.size==2){const[a,b]=[...ptr.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(lastD){Nf=Math.min(250,Math.max(20,Nf*lastD/d));if(Math.round(Nf)!=N){N=Math.round(Nf);draw()}}lastD=d}});
+const pu=e=>{ptr.delete(e.pointerId);lastD=0};cvs.addEventListener('pointerup',pu);cvs.addEventListener('pointercancel',pu);
+const D=$('#md'),_c=D.close.bind(D);let tm;
+D.close=()=>{if(!D.open)return;D.classList.add('out');clearTimeout(tm);tm=setTimeout(()=>{D.classList.remove('out');_c()},150)};
+function show(){clearTimeout(tm);D.classList.remove('out');if(!D.open)D.showModal()}
+let ipr=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();ipr=e});
+addEventListener('appinstalled',()=>{ipr=null;$('#ins').hidden=true});
+async function inst(){if(ipr){ipr.prompt();await ipr.userChoice;ipr=null}else alert('iPhone / iPad：Safari 點「分享」→「加入主畫面」\nAndroid：瀏覽器選單 →「安裝應用程式」或「加到主畫面」')}
+if(matchMedia('(display-mode: standalone)').matches||navigator.standalone)$('#ins').hidden=true;
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 addEventListener('resize',draw);home();
 </script></body></html>
