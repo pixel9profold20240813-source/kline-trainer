@@ -69,6 +69,15 @@ nav button{transition:color .2s}
 #go.done{background:#1f8a68;animation:none}#go.done span{opacity:0}#go.done::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;font-size:24px;animation:pp .4s cubic-bezier(.3,1.7,.5,1)}@keyframes pp{from{transform:scale(0)}}
 button{position:relative;overflow:hidden}
 .rpl{position:absolute;border-radius:50%;background:#ffffff40;transform:scale(0);animation:rpl .55s ease-out forwards;pointer-events:none;text-decoration:none}@keyframes rpl{to{transform:scale(1);opacity:0}}
+#kp{display:block;position:fixed;left:0;right:0;bottom:0;z-index:60;max-width:520px;margin:0 auto;padding:8px 14px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#1b2436f2,#0e131dfa);backdrop-filter:blur(18px);border-radius:26px 26px 0 0;border-top:1px solid #ffffff1f;box-shadow:0 -14px 50px #000a;transform:translateY(105%);transition:transform .38s cubic-bezier(.2,.9,.2,1)}
+#kp.open{transform:none}#kp::before{content:"";display:block;width:38px;height:4px;border-radius:2px;background:#ffffff33;margin:0 auto 6px}
+.kh{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 10px}.kh small{letter-spacing:1px}
+#kp .kd{border:0;background:0;color:var(--b);font-size:15px;font-weight:600;padding:6px 10px}
+.kk{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+#kp .kk button{height:56px;font-size:26px;font-weight:400;border:1px solid #ffffff14;border-radius:18px;background:linear-gradient(180deg,#ffffff1c,#ffffff08);box-shadow:0 2px 0 #0006,inset 0 1px 0 #ffffff14;display:grid;place-items:center;transition:transform .12s cubic-bezier(.3,1.6,.5,1),background .2s,box-shadow .2s}
+#kp .kk button:active:not(:disabled){transform:scale(.93) translateY(1px);background:linear-gradient(180deg,#3a9bff,#2a6df0);box-shadow:0 0 22px #2a8cff88}
+#kp .kk button[data-k="清除"]{font-size:15px;color:var(--m)}#kp .kk button[data-k="⌫"]{color:#ff8a8a}
+#gate{transition:opacity .35s,padding-bottom .35s}#gate.kb{padding-bottom:calc(340px + env(safe-area-inset-bottom))}
 </style></head><body><main>
 <section id="hm" class="on">
  <div class="l" id="me"></div><div class="g" id="st"></div>
@@ -87,8 +96,7 @@ button{position:relative;overflow:hidden}
 <nav><button class="on" onclick="go('hm')">首頁</button><button onclick="go('tr')">訓練</button><button onclick="go('rc')">記錄</button><button onclick="go('lb')">排行榜</button></nav>
 <div id="gate" hidden><div class="gc"><img class="gl" src="icon-192.png" alt=""><h2>K線訓練</h2><p class="l">建立你的交易員 ID，進度會跟著帳號走</p>
 <div class="seg"><i id="pill"></i><button onclick="tab(0)">註冊</button><button onclick="tab(1)">登入</button></div>
-<input id="gi" placeholder="ID（可用中文與符號）" maxlength="20" autocomplete="off"><div class="pl" id="r0"><small>PIN 碼</small><div class="dts"><i></i><i></i><i></i><i></i></div></div><div class="pl" id="r1"><small>再次確認</small><div class="dts"><i></i><i></i><i></i><i></i></div></div><div id="kp"></div>
-<p id="gm"></p><button id="go" onclick="submit()"><span>建立帳號</span></button></div></div>
+<input id="gi" placeholder="ID（可用中文與符號）" maxlength="20" autocomplete="off"><div class="pl" id="r0"><small>PIN 碼</small><div class="dts"><i></i><i></i><i></i><i></i></div></div><div class="pl" id="r1"><small>再次確認</small><div class="dts"><i></i><i></i><i></i><i></i></div></div><p id="gm"></p><button id="go" onclick="submit()"><span>建立帳號</span></button></div><div id="kp"></div></div>
 <dialog id="md"></dialog>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="firebase-config.js?v=2"></script>
 <script>
@@ -188,7 +196,7 @@ let db=null,U=JSON.parse(localStorage.getItem('ktu')||'null'),mode=0,pt=null;
 const ref=id=>db.collection('u').doc('u_'+encodeURIComponent(id)),slim=()=>JSON.stringify({...A,hist:A.hist.slice(0,100)}),TS=()=>firebase.firestore.FieldValue.serverTimestamp();
 async function hs(id,pin){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(id+'\u0001'+pin+'\u0001kt'));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function gm(t,ok){const m=$('#gm');m.textContent=t;m.className=ok?'ok':'er';if(!ok&&t){const c=$('.gc');c.classList.remove('sh');void c.offsetWidth;c.classList.add('sh')}}
-function tab(m){mode=m;$('#pill').style.transform=`translateX(${m*100}%)`;$('#r1').hidden=!!m;pins=['',''];act=0;dots();$('#go span').textContent=m?'登入':'建立帳號';
+function tab(m){mode=m;$('#pill').style.transform=`translateX(${m*100}%)`;$('#r1').hidden=!!m;pins=['',''];act=0;dots();kb(0);$('#go span').textContent=m?'登入':'建立帳號';
  gm(!m&&(A.ops>0||A.eq!=50000)?`偵測到你已有進度（資產 ${F(A.eq,0)}），註冊後會自動綁定到新帳號`:'',1)}
 async function submit(){const id=$('#gi').value.trim(),pin=pins[0],b=$('#go');
  if(!db)return gm('尚未完成 Firebase 設定或沒有網路');if(!id)return gm('請輸入 ID');if(!/^\d{4}$/.test(pin))return gm('PIN 需為 4 位數字');
@@ -200,7 +208,7 @@ async function submit(){const id=$('#gi').value.trim(),pin=pins[0],b=$('#go');
   U={id,h};localStorage.setItem('ktu',JSON.stringify(U));b.classList.remove('ld');b.classList.add('done');await new Promise(r=>setTimeout(r,450));enter();b.classList.remove('done')}
  catch(e){if(e==='bad'){pins=['',''];act=0;dots()}gm(e==='dup'?'這個 ID 已被使用':e==='bad'?'ID 或 PIN 錯誤':'連線失敗，請稍後再試')}
  b.classList.remove('ld');b.disabled=false}
-function enter(){const g=$('#gate');g.classList.add('hide');setTimeout(()=>g.hidden=true,360);S=null;$('#me').textContent='ID：'+U.id;home()}
+function enter(){kb(0);const g=$('#gate');g.classList.add('hide');setTimeout(()=>g.hidden=true,360);S=null;$('#me').textContent='ID：'+U.id;home()}
 function push(){if(!U||!db)return;clearTimeout(pt);pt=setTimeout(sync,1200)}
 const sync=()=>ref(U.id).update({eq:A.eq,d:slim(),t:TS()}).catch(()=>{});
 async function out(){if(!confirm('登出後本機進度會清除，下次用 ID 與 PIN 登入即可讀回。確定登出？'))return;clearTimeout(pt);await sync();localStorage.removeItem('ktu');localStorage.removeItem('kt');location.reload()}
@@ -214,10 +222,13 @@ async function boot(){try{if(window.firebase&&FBC.apiKey){firebase.initializeApp
  if(U)return enter();$('#gate').hidden=false;tab(0);if(!db)gm('尚未完成 Firebase 設定或沒有網路')}
 let pins=['',''],act=0;const ok=()=>/^\d{4}$/.test(pins[0])&&(mode||pins[1]===pins[0])&&!!$('#gi').value.trim();
 function dots(){[0,1].forEach(r=>{$('#r'+r).querySelectorAll('.dts i').forEach((d,i)=>d.classList.toggle('f',i<pins[r].length));$('#r'+r).classList.toggle('on',act==r)});$('#go').classList.toggle('rdy',ok())}
-function key(k){if(k=='⌫'){if(act==1&&!pins[1]&&!mode)act=0;pins[act]=pins[act].slice(0,-1)}else if(k=='清除')pins[act]='';else if(pins[act].length<4){pins[act]+=k;if(pins[act].length==4&&!mode&&act==0)setTimeout(()=>{act=1;dots()},200)}dots()}
-$('#kp').innerHTML=[1,2,3,4,5,6,7,8,9,'清除',0,'⌫'].map(k=>`<button data-k="${k}">${k}</button>`).join('');
-$('#kp').addEventListener('click',e=>{const b=e.target.closest('button');if(b)key(b.dataset.k)});
-[0,1].forEach(r=>$('#r'+r).onclick=()=>{act=r;$('#gi').blur();dots()});$('#gi').addEventListener('input',dots);
+function key(k){if(k=='⌫'){if(act==1&&!pins[1]&&!mode)act=0;pins[act]=pins[act].slice(0,-1)}else if(k=='清除')pins[act]='';else if(pins[act].length<4){pins[act]+=k;if(pins[act].length==4){if(!mode&&act==0)setTimeout(()=>{act=1;dots();kb(1)},200);else setTimeout(()=>kb(0),250)}}dots()}
+const BS='<svg width="26" height="20" viewBox="0 0 26 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1h15a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8L1 10z"/><path d="M13 7l6 6M19 7l-6 6"/></svg>';
+$('#kp').innerHTML='<div class="kh"><small>輸入 PIN 碼</small><button class="kd" onclick="kb(0)">完成</button></div><div class="kk">'+[1,2,3,4,5,6,7,8,9,'清除',0,'⌫'].map(k=>`<button data-k="${k}">${k=='⌫'?BS:k}</button>`).join('')+'</div>';
+$('#kp').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(b)key(b.dataset.k)});
+function kb(on){$('#kp').classList.toggle('open',on);$('#gate').classList.toggle('kb',on);if(on){$('#gi').blur();setTimeout(()=>$('#r'+act).scrollIntoView({block:'center',behavior:'smooth'}),60)}}
+[0,1].forEach(r=>$('#r'+r).onclick=()=>{act=r;dots();kb(1)});$('#gi').addEventListener('input',dots);$('#gi').addEventListener('focus',()=>kb(0));
+$('#gate').addEventListener('pointerdown',e=>{if(!e.target.closest('#kp,.pl'))kb(0)});
 document.addEventListener('pointerdown',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const r=b.getBoundingClientRect(),d=Math.max(r.width,r.height)*2,u=document.createElement('u');
  u.className='rpl';u.style.cssText=`width:${d}px;height:${d}px;left:${e.clientX-r.left-d/2}px;top:${e.clientY-r.top-d/2}px`;b.appendChild(u);setTimeout(()=>u.remove(),600);if(b.closest('#kp')&&navigator.vibrate)navigator.vibrate(8)});
 addEventListener('resize',draw);home();boot();
