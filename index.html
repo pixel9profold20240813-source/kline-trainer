@@ -77,7 +77,7 @@ nav button{transition:color .2s}
 <input id="gi" placeholder="ID（可用中文與符號）" maxlength="20" autocomplete="off"><input id="gp" type="password" inputmode="numeric" maxlength="4" placeholder="4 位數 PIN"><input id="gp2" type="password" inputmode="numeric" maxlength="4" placeholder="再輸入一次 PIN">
 <p id="gm"></p><button id="go" onclick="submit()"><span>建立帳號</span></button></div></div>
 <dialog id="md"></dialog>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="firebase-config.js?v=2"></script>
 <script>
 const $=s=>document.querySelector(s),F=(n,d=2)=>Number(n).toFixed(d),C=v=>v>=0?'u':'d',sg=v=>(v>=0?'+':'')+F(v*100)+'%';
 const fresh=()=>({eq:50000,ops:0,days:0,wins:0,sells:0,best:0,worst:0,dd:0,hist:[]});
