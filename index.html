@@ -98,7 +98,7 @@ button{position:relative;overflow:hidden}
 <div class="seg"><i id="pill"></i><button onclick="tab(0)">註冊</button><button onclick="tab(1)">登入</button></div>
 <input id="gi" placeholder="ID（可用中文與符號）" maxlength="20" autocomplete="off"><div class="pl" id="r0"><small>PIN 碼</small><div class="dts"><i></i><i></i><i></i><i></i></div></div><div class="pl" id="r1"><small>再次確認</small><div class="dts"><i></i><i></i><i></i><i></i></div></div><p id="gm"></p><button id="go" onclick="submit()"><span>建立帳號</span></button></div><div id="kp"></div></div>
 <dialog id="md"></dialog>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="firebase-config.js?v=2"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script><script src="firebase-config.js?v=2"></script>
 <script>
 const $=s=>document.querySelector(s),F=(n,d=2)=>Number(n).toFixed(d),C=v=>v>=0?'u':'d',sg=v=>(v>=0?'+':'')+F(v*100)+'%';
 const fresh=()=>({eq:50000,ops:0,days:0,wins:0,sells:0,best:0,worst:0,dd:0,hist:[]});
@@ -192,7 +192,7 @@ async function inst(){if(ipr){ipr.prompt();await ipr.userChoice;ipr=null}else al
 if(matchMedia('(display-mode: standalone)').matches||navigator.standalone)$('#ins').hidden=true;
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 const FBC=window.FB||{},esc=t=>String(t).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
-let db=null,U=JSON.parse(localStorage.getItem('ktu')||'null'),mode=0,pt=null;
+let db=null,au=null,ow=false,U=JSON.parse(localStorage.getItem('ktu')||'null'),mode=0,pt=null;
 const ref=id=>db.collection('u').doc('u_'+encodeURIComponent(id)),slim=()=>JSON.stringify({...A,hist:A.hist.slice(0,100)}),TS=()=>firebase.firestore.FieldValue.serverTimestamp();
 async function hs(id,pin){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(id+'\u0001'+pin+'\u0001kt'));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function gm(t,ok){const m=$('#gm');m.textContent=t;m.className=ok?'ok':'er';if(!ok&&t){const c=$('.gc');c.classList.remove('sh');void c.offsetWidth;c.classList.add('sh')}}
@@ -205,20 +205,31 @@ async function submit(){const id=$('#gi').value.trim(),pin=pins[0],b=$('#go');
  try{const h=await hs(id,pin),r=ref(id);
   if(!mode)await db.runTransaction(async t=>{if((await t.get(r)).exists)throw'dup';t.set(r,{id,h,eq:A.eq,d:slim(),t:TS()})});
   else{const x=await r.get();if(!x.exists)throw'bad';const v=x.data();if(v.h==='')await r.update({h});else if(v.h!==h)throw'bad';A=JSON.parse(v.d);localStorage.setItem('kt',JSON.stringify(A))}
-  U={id,h};localStorage.setItem('ktu',JSON.stringify(U));b.classList.remove('ld');b.classList.add('done');await new Promise(r=>setTimeout(r,450));enter();b.classList.remove('done')}
+  U={id,h};localStorage.setItem('ktu',JSON.stringify(U));b.classList.remove('ld');b.classList.add('done');await new Promise(r=>setTimeout(r,450));enter();b.classList.remove('done');setTimeout(upg,1500)}
  catch(e){if(e==='bad'){pins=['',''];act=0;dots()}gm(e==='dup'?'這個 ID 已被使用':e==='bad'?'ID 或 PIN 錯誤':'連線失敗，請稍後再試')}
  b.classList.remove('ld');b.disabled=false}
 function enter(){kb(0);const g=$('#gate');g.classList.add('hide');setTimeout(()=>g.hidden=true,360);S=null;$('#me').textContent='ID：'+U.id;home()}
 function push(){if(!U||!db)return;clearTimeout(pt);pt=setTimeout(sync,1200)}
-const sync=()=>ref(U.id).update({eq:A.eq,d:slim(),t:TS()}).catch(()=>{});
-async function out(){if(!confirm('登出後本機進度會清除，下次用 ID 與 PIN 登入即可讀回。確定登出？'))return;clearTimeout(pt);await sync();localStorage.removeItem('ktu');localStorage.removeItem('kt');location.reload()}
+async function hid(id){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('kt1:'+id));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+const mail=k=>k.slice(0,48)+'@kline.game';
+async function upg(){if(!au||!db||!U||ow)return;
+ try{const k=await hid(U.id),em=mail(k);
+  if(au.currentUser&&au.currentUser.email!==em)await au.signOut();
+  if(!au.currentUser){try{await au.signInWithEmailAndPassword(em,U.h)}catch(e){if(/user-not-found|invalid-credential|invalid-login/.test(e.code||''))await au.createUserWithEmailAndPassword(em,U.h);else throw e}}
+  const uid=au.currentUser.uid,L=db.collection('lb').doc(k),P=db.collection('pr').doc(k),x=await L.get();
+  if(!x.exists){const w=db.batch();w.set(L,{id:U.id,uid,eq:A.eq,t:TS()});w.set(P,{uid,d:slim()});await w.commit()}
+  else if(x.data().uid!==uid)throw 0;
+  ow=true}catch(e){ow=false}}
+async function mir(){if(!ow||!au||!au.currentUser||!U)return;try{const k=await hid(U.id),w=db.batch();w.update(db.collection('lb').doc(k),{eq:A.eq,t:TS()});w.update(db.collection('pr').doc(k),{d:slim()});await w.commit()}catch(e){}}
+const sync=()=>{mir();return ref(U.id).update({eq:A.eq,d:slim(),t:TS()}).catch(()=>{})};
+async function out(){if(!confirm('登出後本機進度會清除，下次用 ID 與 PIN 登入即可讀回。確定登出？'))return;clearTimeout(pt);await sync();try{if(au)await au.signOut()}catch(e){}localStorage.removeItem('ktu');localStorage.removeItem('kt');location.reload()}
 async function lb(){const el=$('#lb');el.innerHTML='<div class="l">載入中…</div>';
  try{const rows=(await db.collection('u').orderBy('eq','desc').limit(1000).get()).docs.map(d=>d.data()),me=rows.findIndex(x=>x.id==U.id);
   const row=(x,i)=>`<div class="lr${x.id==U.id?' me':''}" style="animation-delay:${i*40}ms"><b>${i<3?['🥇','🥈','🥉'][i]:i+1}</b><span>${esc(x.id)}</span><em class="${C(x.eq-50000)}">${F(x.eq,0)}</em></div>`;
   el.innerHTML=`<div class="c"><small>你的名次</small><b style="font-size:26px">${me<0?'--':'第 '+(me+1)+' 名'}</b><small>共 ${rows.length} 人｜我的資產 ${F(A.eq,0)}</small></div><div class="lh"><b>前 10 名</b><button onclick="lb()">重新整理</button></div>${rows.slice(0,10).map(row).join('')}`}
  catch(e){el.innerHTML='<div class="l">讀取失敗，請稍後再試</div>'}}
-async function boot(){try{if(window.firebase&&FBC.apiKey){firebase.initializeApp(FBC);db=firebase.firestore()}}catch(e){}
- if(U&&db){try{const x=await ref(U.id).get();if(x.exists&&x.data().h===U.h){A=JSON.parse(x.data().d);localStorage.setItem('kt',JSON.stringify(A))}else{U=null;localStorage.removeItem('ktu')}}catch(e){}}
+async function boot(){try{if(window.firebase&&FBC.apiKey){firebase.initializeApp(FBC);db=firebase.firestore();try{au=firebase.auth()}catch(e){au=null}}}catch(e){}
+ if(U&&db){try{const x=await ref(U.id).get();if(x.exists&&x.data().h===U.h){A=JSON.parse(x.data().d);localStorage.setItem('kt',JSON.stringify(A));setTimeout(upg,1500)}else{U=null;localStorage.removeItem('ktu')}}catch(e){}}
  if(U)return enter();$('#gate').hidden=false;tab(0);if(!db)gm('尚未完成 Firebase 設定或沒有網路')}
 let pins=['',''],act=0;const ok=()=>/^\d{4}$/.test(pins[0])&&(mode||pins[1]===pins[0])&&!!$('#gi').value.trim();
 function dots(){[0,1].forEach(r=>{$('#r'+r).querySelectorAll('.dts i').forEach((d,i)=>d.classList.toggle('f',i<pins[r].length));$('#r'+r).classList.toggle('on',act==r)});$('#go').classList.toggle('rdy',ok())}
