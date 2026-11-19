@@ -78,6 +78,8 @@ button{position:relative;overflow:hidden}
 #kp .kk button:active:not(:disabled){transform:scale(.93) translateY(1px);background:linear-gradient(180deg,#3a9bff,#2a6df0);box-shadow:0 0 22px #2a8cff88}
 #kp .kk button[data-k="清除"]{font-size:15px;color:var(--m)}#kp .kk button[data-k="⌫"]{color:#ff8a8a}
 #gate{transition:opacity .35s,padding-bottom .35s}#gate.kb{padding-bottom:calc(340px + env(safe-area-inset-bottom))}
+#ban{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:20px;background:#000c;backdrop-filter:blur(10px)}#ban .gc{gap:14px}
+.ad-i{display:flex;gap:8px;margin:6px 0}.ad-i input{flex:1;padding:12px;background:#111;color:var(--t);border:1px solid #444;border-radius:10px;font-size:16px}.tg{padding:2px 8px;border-radius:10px;background:#b8332f;font-size:11px;color:#fff;margin-left:6px;font-style:normal}
 </style></head><body><main>
 <section id="hm" class="on">
  <div class="l" id="me"></div><div class="g" id="st"></div>
@@ -91,12 +93,13 @@ button{position:relative;overflow:hidden}
  <div id="pos"></div>
  <div id="ab"><button class="bu" onclick="dlg('b')">買入</button><button class="sl" onclick="dlg('s')">賣出</button><button class="nx" id="nx" onclick="nxt()">下一步</button></div>
 </section>
-<section id="rc"></section><section id="lb"></section>
+<section id="rc"></section><section id="lb"></section><section id="ad"></section>
 </main>
-<nav><button class="on" onclick="go('hm')">首頁</button><button onclick="go('tr')">訓練</button><button onclick="go('rc')">記錄</button><button onclick="go('lb')">排行榜</button></nav>
+<nav><button class="on" onclick="go('hm')">首頁</button><button onclick="go('tr')">訓練</button><button onclick="go('rc')">記錄</button><button onclick="go('lb')">排行榜</button><button id="nadm" hidden onclick="go('ad')">管理</button></nav>
 <div id="gate" hidden><div class="gc"><img class="gl" src="icon-192.png" alt=""><h2>K線訓練</h2><p class="l">建立你的交易員 ID，進度會跟著帳號走</p>
 <div class="seg"><i id="pill"></i><button onclick="tab(0)">註冊</button><button onclick="tab(1)">登入</button></div>
 <input id="gi" placeholder="ID（可用中文與符號）" maxlength="20" autocomplete="off"><div class="pl" id="r0"><small>PIN 碼</small><div class="dts"><i></i><i></i><i></i><i></i></div></div><div class="pl" id="r1"><small>再次確認</small><div class="dts"><i></i><i></i><i></i><i></i></div></div><p id="gm"></p><button id="go" onclick="submit()"><span>建立帳號</span></button></div><div id="kp"></div></div>
+<div id="ban" hidden><div class="gc"><h2>帳號已被停權</h2><p class="l">剩餘時間</p><b id="bt" style="font-size:26px"></b><button onclick="out()">登出</button></div></div>
 <dialog id="md"></dialog>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script><script src="firebase-config.js?v=2"></script>
 <script>
@@ -106,8 +109,8 @@ let A=JSON.parse(localStorage.getItem('kt')||'null')||fresh(),S=null,N=80,Nf=80,
 const save=()=>{localStorage.setItem('kt',JSON.stringify(A));push()};
 const cp=()=>S.r[S.i][4],eq=()=>S.cash+S.sh*cp()-(S.sh?fee(cp(),S.sh):0);
 const fee=(p,n)=>Math.max(n>=1000?20:1,Math.round(p*n*.001425));
-function go(id){['hm','tr','rc','lb'].forEach((k,i)=>{$('#'+k).classList.toggle('on',k==id);document.querySelectorAll('nav button')[i].classList.toggle('on',k==id)});
- if(id=='tr'&&!S)start();if(id=='hm')home();if(id=='rc')recs();if(id=='lb')lb();if(id=='tr')draw()}
+function go(id){['hm','tr','rc','lb','ad'].forEach((k,i)=>{$('#'+k).classList.toggle('on',k==id);document.querySelectorAll('nav button')[i].classList.toggle('on',k==id)});
+ if(id=='tr'&&!S)start();if(id=='hm')home();if(id=='rc')recs();if(id=='lb')lb();if(id=='ad')adl();if(id=='tr')draw()}
 function home(){const pnl=A.eq-50000,c=[['初始資產','50000'],['現有資產',F(A.eq,0)],['總盈虧',`<span class=${C(pnl)}>${F(pnl,0)}</span>`],
  ['收益率',`<span class=${C(pnl)}>${sg(pnl/50000)}</span>`],['操作次數/天數',A.ops+'/'+A.days],['盈利次數',A.wins],
  ['成功率',A.sells?F(A.wins/A.sells*100)+'%':'--'],['最大盈利',`<span class=u>${sg(A.best)}</span>`],['最大虧損',`<span class=d>${sg(A.worst)}</span>`],['最大回撤',`<span class=d>${sg(A.dd)}</span>`]];
@@ -132,15 +135,15 @@ function trade(side,n){if(side=='s'&&n>S.sh)return;const p=cp(),f=fee(p,n);
  A.ops++;S.tr.push([S.i-S.s,side,p,n,f]);save();render()}
 function dlg(side){if(!S||S.done)return;stop();const p=cp();mx=side=='b'?maxBuy(p):S.sh;if(mx<1)return alert(side=='b'?'資金不足':'目前無持倉');sd=side;
  $('#md').innerHTML=`<h3>${side=='b'?'買入':'賣出'}股票</h3><p>價格 ${F(p)}　可用資金 ${F(S.cash,0)}</p>
- <div class=r><button onclick="st(-1)">－</button><input id=q type=number inputmode=numeric value=${mx>=1000?1000:mx} oninput=up()><button onclick="st(1)">＋</button></div>
- <p class=l>最多 ${mx} 股（每次 ± 1000 股，可手動輸入零股）<br>費用 <span id=fe></span></p>
+ <div class=r><button onclick="st(-1)">－</button><input id=q type=number inputmode=numeric value=${Math.min(mx,100)} oninput=up()><button onclick="st(1)">＋</button></div>
+ <p class=l>最多 ${mx} 股（每次 ± 100 股，可手動輸入任意股數）<br>費用 <span id=fe></span></p>
  <div class=r>${[['全倉',1],['1/2',2],['1/3',3],['1/4',4]].map(([l,d])=>`<button onclick="qf(${d})">${l}</button>`).join('')}</div>
  <div class=r style="margin-top:14px"><button onclick="$('#md').close()">取消</button><button id=ok style="background:var(--b);border-color:var(--b)">${side=='b'?'買入':'賣出'}</button></div>`;
  $('#ok').onclick=()=>{trade(sd,qv());$('#md').close()};show();up()}
 const qv=()=>Math.min(mx,Math.max(1,parseInt($('#q').value)||1));
 function up(){const n=qv();$('#fe').textContent=fee(cp(),n)+' 元（成交額 '+F(cp()*n,0)+'）'}
-function st(d){$('#q').value=Math.min(mx,Math.max(1,qv()+d*(mx>=1000?1000:1)));up()}
-function qf(d){const v=mx/d|0;$('#q').value=v>=1000?v-v%1000:Math.max(1,v);up()}
+function st(d){$('#q').value=Math.min(mx,Math.max(1,qv()+d*100));up()}
+function qf(d){const v=mx/d|0;$('#q').value=Math.max(1,v);up()}
 function fin(){if(!S||S.done)return;if(confirm('提前結束並結算？'))end()}
 function end(){stop();const p=cp();if(S.sh){const f=fee(p,S.sh);S.cash+=p*S.sh-f;A.ops++;A.sells++;if(p*S.sh-f>S.cost*S.sh)A.wins++;S.tr.push([S.i-S.s,'s',p,S.sh,f]);S.sh=0}
  const pnl=S.cash-S.start,rg=S.r[S.i][4]/S.r[S.s][4]-1,pr=pnl/S.start;S.done=true;A.eq=S.cash;A.days+=S.i-S.s;A.best=Math.max(A.best,pr);A.worst=Math.min(A.worst,pr);A.dd=Math.min(A.dd,S.dd);
@@ -192,8 +195,9 @@ async function inst(){if(ipr){ipr.prompt();await ipr.userChoice;ipr=null}else al
 if(matchMedia('(display-mode: standalone)').matches||navigator.standalone)$('#ins').hidden=true;
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 const FBC=window.FB||{},esc=t=>String(t).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
-let db=null,U=JSON.parse(localStorage.getItem('ktu')||'null'),mode=0,pt=null;
+let db=null,unsub=null,lastAe=null,bt=null,AL=[],U=JSON.parse(localStorage.getItem('ktu')||'null'),mode=0,pt=null;
 const ref=id=>db.collection('u').doc('u_'+encodeURIComponent(id)),slim=()=>JSON.stringify({...A,hist:A.hist.slice(0,100)}),TS=()=>firebase.firestore.FieldValue.serverTimestamp();
+const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(x=>x.toString(16).padStart(2,'0')).join('');
 async function hs(id,pin){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(id+'\u0001'+pin+'\u0001kt'));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function gm(t,ok){const m=$('#gm');m.textContent=t;m.className=ok?'ok':'er';if(!ok&&t){const c=$('.gc');c.classList.remove('sh');void c.offsetWidth;c.classList.add('sh')}}
 function tab(m){mode=m;$('#pill').style.transform=`translateX(${m*100}%)`;$('#r1').hidden=!!m;pins=['',''];act=0;dots();kb(0);$('#go span').textContent=m?'登入':'建立帳號';
@@ -201,25 +205,51 @@ function tab(m){mode=m;$('#pill').style.transform=`translateX(${m*100}%)`;$('#r1
 async function submit(){const id=$('#gi').value.trim(),pin=pins[0],b=$('#go');
  if(!db)return gm('尚未完成 Firebase 設定或沒有網路');if(!id)return gm('請輸入 ID');if(!/^\d{4}$/.test(pin))return gm('PIN 需為 4 位數字');
  if(!mode&&pin!==pins[1]){pins[1]='';act=1;dots();return gm('兩次輸入的 PIN 不一致')}
+ if(!mode&&id.toLowerCase()==='admin')return gm('此 ID 無法使用');
  b.classList.add('ld');b.disabled=true;gm('',1);
- try{const h=await hs(id,pin),r=ref(id);
+ try{if(mode&&id==='admin'){const ak=await sha('adm1:'+pin);try{await db.collection('cmd').doc('ping').set({ak,op:'ping',t:TS()});U={id:'admin',h:'',ak,adm:1};localStorage.setItem('ktu',JSON.stringify(U));b.classList.remove('ld');b.classList.add('done');await new Promise(r=>setTimeout(r,450));enter();b.classList.remove('done');b.disabled=false;return}catch(e){}}
+  const h=await hs(id,pin),r=ref(id);
   if(!mode)await db.runTransaction(async t=>{if((await t.get(r)).exists)throw'dup';t.set(r,{id,h,eq:A.eq,d:slim(),t:TS()})});
   else{const x=await r.get();if(!x.exists)throw'bad';const v=x.data();if(v.h==='')await r.update({h});else if(v.h!==h)throw'bad';A=JSON.parse(v.d);localStorage.setItem('kt',JSON.stringify(A))}
   U={id,h};localStorage.setItem('ktu',JSON.stringify(U));b.classList.remove('ld');b.classList.add('done');await new Promise(r=>setTimeout(r,450));enter();b.classList.remove('done')}
  catch(e){if(e==='bad'){pins=['',''];act=0;dots()}gm(e==='dup'?'這個 ID 已被使用':e==='bad'?'ID 或 PIN 錯誤':'連線失敗，請稍後再試')}
  b.classList.remove('ld');b.disabled=false}
-function enter(){kb(0);const g=$('#gate');g.classList.add('hide');setTimeout(()=>g.hidden=true,360);S=null;$('#me').textContent='ID：'+U.id;home()}
-function push(){if(!U||!db)return;clearTimeout(pt);pt=setTimeout(sync,1200)}
-const sync=()=>ref(U.id).update({eq:A.eq,d:slim(),t:TS()}).catch(()=>{});
+function enter(){kb(0);const g=$('#gate');g.classList.add('hide');setTimeout(()=>g.hidden=true,360);S=null;$('#me').textContent='ID：'+U.id+(U.adm?'（管理員）':'');$('#nadm').hidden=!U.adm;watch();home()}
+function push(){if(!U||!db||U.adm)return;clearTimeout(pt);pt=setTimeout(sync,1200)}
+const sync=()=>U.adm?Promise.resolve():ref(U.id).update({eq:A.eq,d:slim(),t:TS()}).catch(()=>{});
 async function out(){if(!confirm('登出後本機進度會清除，下次用 ID 與 PIN 登入即可讀回。確定登出？'))return;clearTimeout(pt);await sync();localStorage.removeItem('ktu');localStorage.removeItem('kt');location.reload()}
 async function lb(){const el=$('#lb');el.innerHTML='<div class="l">載入中…</div>';
- try{const rows=(await db.collection('u').orderBy('eq','desc').limit(1000).get()).docs.map(d=>d.data()),me=rows.findIndex(x=>x.id==U.id);
+ try{const rows=(await db.collection('u').orderBy('eq','desc').limit(1000).get()).docs.map(d=>d.data()).filter(x=>x.id!=='admin'),me=rows.findIndex(x=>x.id==U.id);
   const row=(x,i)=>`<div class="lr${x.id==U.id?' me':''}" style="animation-delay:${i*40}ms"><b>${i<3?['🥇','🥈','🥉'][i]:i+1}</b><span>${esc(x.id)}</span><em class="${C(x.eq-50000)}">${F(x.eq,0)}</em></div>`;
   el.innerHTML=`<div class="c"><small>你的名次</small><b style="font-size:26px">${me<0?'--':'第 '+(me+1)+' 名'}</b><small>共 ${rows.length} 人｜我的資產 ${F(A.eq,0)}</small></div><div class="lh"><b>前 10 名</b><button onclick="lb()">重新整理</button></div>${rows.slice(0,10).map(row).join('')}`}
  catch(e){el.innerHTML='<div class="l">讀取失敗，請稍後再試</div>'}}
 async function boot(){try{if(window.firebase&&FBC.apiKey){firebase.initializeApp(FBC);db=firebase.firestore()}}catch(e){}
- if(U&&db){try{const x=await ref(U.id).get();if(x.exists&&x.data().h===U.h){A=JSON.parse(x.data().d);localStorage.setItem('kt',JSON.stringify(A))}else{U=null;localStorage.removeItem('ktu')}}catch(e){}}
+ if(U&&db&&!U.adm){try{const x=await ref(U.id).get();if(x.exists&&x.data().h===U.h){A=JSON.parse(x.data().d);localStorage.setItem('kt',JSON.stringify(A))}else{U=null;localStorage.removeItem('ktu')}}catch(e){}}
  if(U)return enter();$('#gate').hidden=false;tab(0);if(!db)gm('尚未完成 Firebase 設定或沒有網路')}
+function ban(b){clearInterval(bt);const o=$('#ban');if(!b||b<=Date.now()){o.hidden=true;return}stop();o.hidden=false;
+ const tick=()=>{const r=b-Date.now();if(r<=0){clearInterval(bt);o.hidden=true;return}const d=r/864e5|0,h=((r/36e5)%24)|0,m=((r/6e4)%60)|0,s=((r/1e3)%60)|0;
+  $('#bt').textContent=(d?d+' 天 ':'')+(d||h?h+' 時 ':'')+(d||h||m?m+' 分 ':'')+s+' 秒'};tick();bt=setInterval(tick,1000)}
+function watch(){if(unsub)unsub();unsub=null;lastAe=null;if(!db||!U||U.adm)return;
+ unsub=ref(U.id).onSnapshot(s=>{if(!s.exists||s.metadata.hasPendingWrites)return;const d=s.data();ban(d.b||0);
+  if(lastAe===null)lastAe=d.ae||0;else if((d.ae||0)!==lastAe){lastAe=d.ae||0;try{A=JSON.parse(d.d);localStorage.setItem('kt',JSON.stringify(A))}catch(e){}stop();if(S&&!S.done){S=null;go('hm')}home();alert('管理員已調整你的資產')}},()=>{})}
+async function adl(){const el=$('#ad');el.innerHTML='<div class="l">載入中…</div>';
+ try{AL=(await db.collection('u').orderBy('eq','desc').limit(1000).get()).docs.map(d=>({k:d.id,...d.data()})).filter(x=>x.id!=='admin');
+  el.innerHTML='<div class="lh"><b>管理員</b><button onclick="adl()">重新整理</button></div><div class="ad-i"><input id="aq" placeholder="搜尋 ID" oninput="adr()"></div><div id="al" style="display:flex;flex-direction:column;gap:10px"></div>';adr()}
+ catch(e){el.innerHTML='<div class="l">讀取失敗：'+esc(e.code||e)+'</div>'}}
+function adr(){const q=($('#aq').value||'').trim().toLowerCase(),now=Date.now();
+ $('#al').innerHTML=AL.map((u,i)=>[u,i]).filter(([u])=>String(u.id).toLowerCase().includes(q)).slice(0,100).map(([u,i])=>`<div class="lr" onclick="adm(${i})"><span>${esc(u.id)}${u.b>now?'<i class="tg">停權</i>':''}</span><em>${F(u.eq,0)}</em></div>`).join('')||'<div class="l">沒有符合的使用者</div>'}
+function adm(i){const u=AL[i],bn=u.b>Date.now();
+ $('#md').innerHTML=`<h3>${esc(u.id)}</h3><p class="l">目前資產 ${F(u.eq,0)}${bn?'｜停權至 '+new Date(u.b).toLocaleString('zh-TW',{hour12:false}):''}</p>
+ <p class="l">修改資產</p><div class="r"><input id="aqv" type="number" inputmode="numeric" value="${Math.round(u.eq)}"><button onclick="aeq(${i})">儲存</button></div>
+ <p class="l">停權時間（可只填需要的欄位）</p><div class="r">${[['天','ad1'],['時','ah1'],['分','am1'],['秒','as1']].map(([l,id])=>`<input id="${id}" type="number" inputmode="numeric" min="0" placeholder="${l}">`).join('')}</div>
+ <div class="r" style="margin-top:12px"><button onclick="aban(${i},1)" style="background:#b8332f;border:0">停權</button>${bn?`<button onclick="aban(${i},0)">解除停權</button>`:''}</div>
+ <div class="r" style="margin-top:10px"><button onclick="$('#md').close()">關閉</button></div>`;show()}
+async function aeq(i){const u=AL[i],n=Math.round(+$('#aqv').value);if(!isFinite(n)||n<0||n>1e8)return alert('數值不正確（0～1 億）');
+ try{const r=db.collection('u').doc(u.k),x=await r.get(),d=JSON.parse(x.data().d);d.eq=n;await db.collection('cmd').doc(u.k).set({ak:U.ak,op:'eq',eq:n,t:TS()});
+  await r.update({eq:n,d:JSON.stringify(d),t:TS(),ae:Date.now()});$('#md').close();adl()}catch(e){alert('失敗：'+(e.code||e))}}
+async function aban(i,on){const u=AL[i];let ms=0;
+ if(on){ms=Math.round((+$('#ad1').value||0)*864e5+(+$('#ah1').value||0)*36e5+(+$('#am1').value||0)*6e4+(+$('#as1').value||0)*1e3);if(!(ms>=1000))return alert('請輸入停權時間（至少 1 秒）');if(ms>3650*864e5)return alert('最長 3650 天')}
+ const b=on?Date.now()+ms:0;try{await db.collection('cmd').doc(u.k).set({ak:U.ak,op:'ban',b,t:TS()});await db.collection('u').doc(u.k).update({b});$('#md').close();adl()}catch(e){alert('失敗：'+(e.code||e))}}
 let pins=['',''],act=0;const ok=()=>/^\d{4}$/.test(pins[0])&&(mode||pins[1]===pins[0])&&!!$('#gi').value.trim();
 function dots(){[0,1].forEach(r=>{$('#r'+r).querySelectorAll('.dts i').forEach((d,i)=>d.classList.toggle('f',i<pins[r].length));$('#r'+r).classList.toggle('on',act==r)});$('#go').classList.toggle('rdy',ok())}
 function key(k){if(k=='⌫'){if(act==1&&!pins[1]&&!mode)act=0;pins[act]=pins[act].slice(0,-1)}else if(k=='清除')pins[act]='';else if(pins[act].length<4){pins[act]+=k;if(pins[act].length==4){if(!mode&&act==0)setTimeout(()=>{act=1;dots();kb(1)},200);else setTimeout(()=>kb(0),250)}}dots()}
